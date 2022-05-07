@@ -1,12 +1,12 @@
+from jax import grad
 import numpy as np
 import jax.numpy as jnp
 from jax.config import config
 config.update("jax_enable_x64", True)
 
 import matplotlib.pyplot as plt
-from utils import create_params, one_hot, create_state
+from utils import compute_gradient_norm, create_params, one_hot
 from model import accuracy, loss
-from algorithms import GD_update, ada_Grad_update
 from dataloader import MNIST, FashionMNIST, NumpyLoader, FlattenAndCast
 from optimizers import SGD, AdaGrad, SpiderBoost, AdaSpider
 import wandb
@@ -65,10 +65,14 @@ for epoch in range(T):
         params, state = algorithm.update(params, state, (x,y))
         batch_loss = loss(params, x, y)
         logger.log({"loss": batch_loss})
+
     train_acc = accuracy(params, train_images, train_labels)
     test_acc = accuracy(params, test_images, test_labels)
+    gradient_norm = compute_gradient_norm(params, train_images, train_labels)
     logger.log({"train_acc": train_acc})
     logger.log({"test_acc": test_acc})
+    logger.log({'grad_norm': gradient_norm})
+
     print("#### Epoch {}".format(epoch))
     print("Training set accuracy {}".format(train_acc))
     print("Test set accuracy {}".format(test_acc))

@@ -1,7 +1,9 @@
 import numpy as np
 import jax.numpy as jnp
-from jax import jit
+import jax
+from jax import jit, grad
 from functools import partial
+from model import loss
 
 def create_params(layer_widths):
   params = []
@@ -26,3 +28,8 @@ def create_state(layer_widths):
             )
     )
   return state
+
+def compute_gradient_norm(params, x, y):
+  grads = grad(loss)(params, x, y)
+  norms = jax.tree_map(lambda v: jnp.sum(v*v), grads)
+  return jax.tree_util.tree_reduce(lambda a, b: a + b, norms, 0.0)
