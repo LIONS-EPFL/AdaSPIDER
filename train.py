@@ -42,7 +42,7 @@ logger = wandb.init(project="AdaSpider", name=optimizer.__str__(),
 wandb.config.update(args)
 
 dataset = FashionMNIST("/tmp/mnist/", download=True, transform=FlattenAndCast())
-training_generator = NumpyLoader(dataset, batch_size=batch_size, num_workers=0)
+training_generator = NumpyLoader(dataset, batch_size=batch_size, num_workers=8)
 train_images = np.array(dataset.data).reshape(
     len(dataset.data), -1
 )
