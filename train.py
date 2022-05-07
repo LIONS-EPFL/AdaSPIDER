@@ -13,7 +13,7 @@ import wandb
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--batch_size', default=128, type=float)
+parser.add_argument('--batch_size', default=128, type=int)
 parser.add_argument('--step_size', default=0.01, type=float)
 parser.add_argument('--eta', default=0.01, type=float)
 parser.add_argument('--epsilon', default=1e-4, type=float)
