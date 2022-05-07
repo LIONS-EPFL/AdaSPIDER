@@ -31,7 +31,7 @@ T = args.epochs
 optimizers = {'SGD': SGD, 'AdaSpider': AdaSpider, 'AdaGrad': AdaGrad}
 optimizer_params = {'SGD': (step_size), 'AdaSpider': (50000), 'AdaGrad': (eta, epsilon)}
 algorithm = optimizers[args.optimizer]
-optimizer = algorithm(optimizer_params[args.optimizer])
+optimizer = algorithm(*optimizer_params[args.optimizer])
 ######
 
 layer_sizes = [28 * 28, 512, 512, 10]
