@@ -10,33 +10,49 @@ from algorithms import GD_update, ada_Grad_update
 from dataloader import MNIST, FashionMNIST, NumpyLoader, FlattenAndCast
 from optimizers import SGD, AdaGrad, SpiderBoost, AdaSpider
 import wandb
+import argparse
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--batch_size', default=128, type=float)
+parser.add_argument('--step_size', default=0.01, type=float)
+parser.add_argument('--eta', default=0.01, type=float)
+parser.add_argument('--epsilon', default=1e-4, type=float)
+parser.add_argument('--epochs', default=10, type=int)
+parser.add_argument('--optimizer', default='SGD', type=str)
+
+args = parser.parse_args()
 
 ###PARAMS
-batch_size = 128
-layer_sizes = [28 * 28, 512, 512, 10]
-step_size = 1
-num_classes = 10
-T = 10
-algorithm = AdaSpider
-optimizer = AdaSpider(n=1000)
+batch_size = args.batch_size
+step_size = args.step_size
+eta = args.eta
+epsilon = args.epsilon
+T = args.epochs
+optimizers = {'SGD': SGD, 'AdaSpider': AdaSpider, 'AdaGrad': AdaGrad}
+optimizer_params = {'SGD': (step_size), 'AdaSpider': (50000), 'AdaGrad': (eta, epsilon)}
+algorithm = optimizers[args.optimizer]
+optimizer = algorithm(optimizer_params[args.optimizer])
 ######
+
+layer_sizes = [28 * 28, 512, 512, 10]
+num_classes = 10
 
 logger = wandb.init(project="AdaSpider", name=optimizer.__str__(),
            config={"batch_size": batch_size, "epochs": T, "layer_sizes": layer_sizes})
+wandb.config.update(args)
 
-mnist_dataset = FashionMNIST("/tmp/mnist/", download=True, transform=FlattenAndCast())
-training_generator = NumpyLoader(mnist_dataset, batch_size=batch_size, num_workers=8)
-train_images = np.array(mnist_dataset.train_data).reshape(
-    len(mnist_dataset.train_data), -1
+dataset = FashionMNIST("/tmp/mnist/", download=True, transform=FlattenAndCast())
+training_generator = NumpyLoader(dataset, batch_size=batch_size, num_workers=0)
+train_images = np.array(dataset.data).reshape(
+    len(dataset.data), -1
 )
-train_labels = one_hot(np.array(mnist_dataset.train_labels), num_classes)
-mnist_dataset_test = FashionMNIST("/tmp/mnist/", download=True, train=False)
+train_labels = one_hot(np.array(dataset.targets), num_classes)
+dataset_test = FashionMNIST("/tmp/mnist/", download=True, train=False)
 test_images = jnp.array(
-    mnist_dataset_test.test_data.numpy().reshape(len(mnist_dataset_test.test_data), -1),
+    dataset_test.data.numpy().reshape(len(dataset_test.data), -1),
     dtype=jnp.float32,
 )
-test_labels = one_hot(np.array(mnist_dataset_test.test_labels), num_classes)
+test_labels = one_hot(np.array(dataset_test.targets), num_classes)
 
 
 params = create_params(layer_sizes)

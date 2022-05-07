@@ -91,18 +91,16 @@ class SpiderBoost(Optimizer):
 
 @attrs.define
 class AdaSpider(Optimizer):
-    step_size: float = 0.01
     n: int = 0
 
     def create_state(self, params):
         v = tree_map(lambda p: jnp.zeros_like(p), params)
         prev_params = tree_map(lambda p: jnp.zeros_like(p), params)
-        return {'step_size': self.step_size, 'V': v, 'prev_params': prev_params, 'acc_v': 0.0, 'n': self.n}
+        return {'V': v, 'prev_params': prev_params, 'acc_v': 0.0, 'n': self.n}
 
     @jit
     def update(params, state, batch):
         x, y = batch
-        step_size = state['step_size']
         V = state['V']
         prev_params = state['prev_params']
         accumulated_norms = state['acc_v']
