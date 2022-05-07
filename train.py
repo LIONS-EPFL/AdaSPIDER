@@ -9,20 +9,24 @@ from model import accuracy, loss
 from algorithms import GD_update, ada_Grad_update
 from dataloader import MNIST, FashionMNIST, NumpyLoader, FlattenAndCast
 from optimizers import SGD, AdaGrad, SpiderBoost, AdaSpider
+import wandb
 
 
 ###PARAMS
-batch_size = 1
+batch_size = 128
 layer_sizes = [28 * 28, 512, 512, 10]
 step_size = 1
 num_classes = 10
-T = 3
-algorithm = AdaGrad
-optimizer = AdaGrad(eta=0.01, epsilon=0.01)
+T = 10
+algorithm = AdaSpider
+optimizer = AdaSpider(n=1000)
 ######
 
+logger = wandb.init(project="AdaSpider", name=optimizer.__str__(),
+           config={"batch_size": batch_size, "epochs": T, "layer_sizes": layer_sizes})
+
 mnist_dataset = FashionMNIST("/tmp/mnist/", download=True, transform=FlattenAndCast())
-training_generator = NumpyLoader(mnist_dataset, batch_size=batch_size, num_workers=0)
+training_generator = NumpyLoader(mnist_dataset, batch_size=batch_size, num_workers=8)
 train_images = np.array(mnist_dataset.train_data).reshape(
     len(mnist_dataset.train_data), -1
 )
@@ -44,11 +48,11 @@ for epoch in range(T):
         y = one_hot(y, num_classes)
         params, state = algorithm.update(params, state, (x,y))
         batch_loss = loss(params, x, y)
-        loss_lst.append(batch_loss)
+        logger.log({"loss": batch_loss})
     train_acc = accuracy(params, train_images, train_labels)
     test_acc = accuracy(params, test_images, test_labels)
+    logger.log({"train_acc": train_acc})
+    logger.log({"test_acc": test_acc})
     print("#### Epoch {}".format(epoch))
     print("Training set accuracy {}".format(train_acc))
     print("Test set accuracy {}".format(test_acc))
-
-np.savetxt("losses-" + optimizer.__str__()+".csv", np.asarray(loss_lst))
