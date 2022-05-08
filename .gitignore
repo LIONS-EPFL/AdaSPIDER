@@ -1,3 +1,4 @@
 virt/
 *.pyc
+wandb/
 
