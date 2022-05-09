@@ -162,7 +162,7 @@ class AdaSpider(Optimizer):
         n = state["n"]
         eta = state["eta"]
 
-        state["prev_params"] = params
+        state["prev_params"] = tree_map(lambda x: x.copy(), params)
 
         step_size = 1 / (n ** (1 / 4) * jnp.sqrt(jnp.sqrt(n) + accumulated_norms))
         state["step_size"] = step_size
