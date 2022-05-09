@@ -71,8 +71,7 @@ for epoch in range(T):
     state = algorithm.on_epoch_state_update(params, state, (train_images, train_labels))
     for (idx, (x, y)) in enumerate(training_generator):
         y = one_hot(y, num_classes)
-        if idx > 0 or args.optimizer != 'AdaSpider':
-            state = algorithm.on_step_state_update(params, state, (x,y))
+        state = algorithm.on_step_state_update(params, state, (x,y))
         params, state = algorithm.update(params, state, (x, y))
         batch_loss = loss(params, x, y)
         logger.log({"loss": batch_loss})
