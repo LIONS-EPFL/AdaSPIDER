@@ -77,6 +77,7 @@ for epoch in range(T):
         logger.log({"loss": batch_loss})
         if args.optimizer == 'AdaSpider':
             logger.log({"step_size": state["step_size"]})
+            logger.log({"accumulated_norm": state["acc_v"]})
 
     train_acc = accuracy(params, train_images, train_labels)
     test_acc = accuracy(params, test_images, test_labels)
