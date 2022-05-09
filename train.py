@@ -50,11 +50,11 @@ logger = wandb.init(
 )
 wandb.config.update(args)
 
-dataset = FashionMNIST("/tmp/mnist/", download=True, transform=FlattenAndCast())
+dataset = MNIST("/tmp/mnist/", download=True, transform=FlattenAndCast())
 training_generator = NumpyLoader(dataset, batch_size=batch_size, num_workers=0)
 train_images = np.array(dataset.data).reshape(len(dataset.data), -1)
 train_labels = one_hot(np.array(dataset.targets), num_classes)
-dataset_test = FashionMNIST("/tmp/mnist/", download=True, train=False)
+dataset_test = MNIST("/tmp/mnist/", download=True, train=False)
 test_images = jnp.array(
     dataset_test.data.numpy().reshape(len(dataset_test.data), -1),
     dtype=jnp.float32,
