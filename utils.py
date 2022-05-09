@@ -12,8 +12,8 @@ def create_params(layer_widths):
     for n_in, n_out in zip(layer_widths[:-1], layer_widths[1:]):
         params.append(
             dict(
-                weights=0.0001 * jnp.array(np.random.normal(size=(n_in, n_out))),
-                biases=0.0001 * jnp.array(np.random.normal(size=(n_out,))),
+                weights=0.01 * (np.random.normal(size=(n_in, n_out))),
+                biases=0.01 * (np.random.normal(size=(n_out,))),
             )
         )
     return params
