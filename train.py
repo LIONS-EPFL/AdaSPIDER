@@ -20,6 +20,7 @@ parser.add_argument("--eta", default=0.01, type=float)
 parser.add_argument("--epsilon", default=1e-4, type=float)
 parser.add_argument("--epochs", default=10, type=int)
 parser.add_argument("--optimizer", default="SGD", type=str)
+parser.add_argument("--dataset", default="MNIST", type=str)
 
 args = parser.parse_args()
 
@@ -38,6 +39,8 @@ optimizer_params = {
 }
 algorithm = optimizers[args.optimizer]
 optimizer = algorithm(**optimizer_params[args.optimizer])
+selected_dataset = {"MNIST": MNIST, "FashionMNIST": FashionMNIST}
+data = selected_dataset[args.dataset]
 ######
 
 layer_sizes = [28 * 28, 512, 512, 10]
@@ -50,11 +53,11 @@ logger = wandb.init(
 )
 wandb.config.update(args)
 
-dataset = MNIST("/tmp/mnist/", download=True, transform=FlattenAndCast())
+dataset = data("/tmp/mnist/", download=True, transform=FlattenAndCast())
 training_generator = NumpyLoader(dataset, batch_size=batch_size, num_workers=0)
 train_images = np.array(dataset.data).reshape(len(dataset.data), -1)
 train_labels = one_hot(np.array(dataset.targets), num_classes)
-dataset_test = MNIST("/tmp/mnist/", download=True, train=False)
+dataset_test = data("/tmp/mnist/", download=True, train=False)
 test_images = jnp.array(
     dataset_test.data.numpy().reshape(len(dataset_test.data), -1),
     dtype=jnp.float32,
