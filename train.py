@@ -5,7 +5,6 @@ from jax.config import config
 
 config.update("jax_enable_x64", True)
 
-import matplotlib.pyplot as plt
 from utils import compute_distance, compute_gradient_norm, create_params, one_hot
 from model import accuracy, loss
 from dataloader import MNIST, FashionMNIST, NumpyLoader, FlattenAndCast
@@ -21,6 +20,7 @@ parser.add_argument("--epsilon", default=1e-4, type=float)
 parser.add_argument("--epochs", default=10, type=int)
 parser.add_argument("--optimizer", default="SGD", type=str)
 parser.add_argument("--dataset", default="MNIST", type=str)
+parser.add_argument("--n", default=60000, type=int)
 
 args = parser.parse_args()
 
@@ -30,7 +30,6 @@ step_size = args.step_size
 eta = args.eta
 epsilon = args.epsilon
 T = args.epochs
-sgd_epochs = 4
 optimizers = {"SGD": SGD, "AdaSpider": AdaSpider, "AdaGrad": AdaGrad}
 optimizer_params = {
     "SGD": {"step_size": step_size},
@@ -77,10 +76,10 @@ for epoch in range(T):
         state = algorithm.on_step_state_update(params, state, (x,y))
         params, state = algorithm.update(params, state, (x, y))
         batch_loss = loss(params, x, y)
-        logger.log({"loss": batch_loss})
         if args.optimizer == 'AdaSpider':
-            logger.log({"step_size": state["step_size"]})
-            logger.log({"accumulated_norm": state["acc_v"]})
+            logger.log({"step_size": state["step_size"]}, commit=False)
+            logger.log({"accumulated_norm": state["acc_v"]}, commit=False)
+        logger.log({"loss": batch_loss})
 
     train_acc = accuracy(params, train_images, train_labels)
     test_acc = accuracy(params, test_images, test_labels)
@@ -90,6 +89,7 @@ for epoch in range(T):
     logger.log({"test_acc": test_acc})
     logger.log({"grad_norm": gradient_norm})
     logger.log({"distance_from_init": distance_from_init})
+    logger.log({"epoch": epoch})
     print("#### Epoch {}".format(epoch))
     print("Training set accuracy {}".format(train_acc))
     print("Test set accuracy {}".format(test_acc))

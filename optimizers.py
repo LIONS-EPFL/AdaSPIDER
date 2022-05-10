@@ -182,5 +182,5 @@ class AdaSpider(Optimizer):
 
         accumulated_norms += total_norm
         state["acc_v"] = accumulated_norms
-        state["prev_params"] = tree_map(lambda x: x.copy(), params)
+        state["prev_params"] = tree_map(lambda z: z.copy(), params)
         return state
