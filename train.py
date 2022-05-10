@@ -49,6 +49,7 @@ logger = wandb.init(
     project="AdaSpider",
     name=optimizer.__str__(),
     config={"batch_size": batch_size, "epochs": T, "layer_sizes": layer_sizes},
+    tags=[args.dataset]
 )
 wandb.config.update(args)
 
