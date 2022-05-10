@@ -49,6 +49,7 @@ class AdaGrad(Optimizer):
 
     @jit
     def on_step_state_update(params, state, batch):
+        x, y = batch
         grads = grad(loss)(params, x, y)
         state["G"] = tree_map(lambda prev, g: prev + g**2, state["G"], grads)
         return state
