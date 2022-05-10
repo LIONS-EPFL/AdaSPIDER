@@ -8,7 +8,7 @@ config.update("jax_enable_x64", True)
 from utils import compute_distance, compute_gradient_norm, create_params, one_hot
 from model import accuracy, loss
 from dataloader import MNIST, FashionMNIST, NumpyLoader, FlattenAndCast
-from optimizers import SGD, AdaGrad, SpiderBoost, AdaSpider
+from optimizers import SGD, AdaGrad, AdaSpiderBoost, SpiderBoost, AdaSpider
 import wandb
 import argparse
 
@@ -30,11 +30,12 @@ step_size = args.step_size
 eta = args.eta
 epsilon = args.epsilon
 T = args.epochs
-optimizers = {"SGD": SGD, "AdaSpider": AdaSpider, "AdaGrad": AdaGrad}
+optimizers = {"SGD": SGD, "AdaSpider": AdaSpider, "AdaGrad": AdaGrad, "AdaSpiderBoost": AdaSpiderBoost}
 optimizer_params = {
     "SGD": {"step_size": step_size},
-    "AdaSpider": {"n": 60000, "eta": eta},
+    "AdaSpider": {"n": args.n, "eta": eta},
     "AdaGrad": {"eta": eta, "epsilon": epsilon},
+    "AdaSpiderBoost": {"eta": eta, "n": args.n},
 }
 algorithm = optimizers[args.optimizer]
 optimizer = algorithm(**optimizer_params[args.optimizer])
@@ -81,16 +82,16 @@ for epoch in range(T):
             logger.log({"step_size": state["step_size"]}, commit=False)
             logger.log({"accumulated_norm": state["acc_v"]}, commit=False)
         logger.log({"loss": batch_loss})
-
+        
     train_acc = accuracy(params, train_images, train_labels)
     test_acc = accuracy(params, test_images, test_labels)
     gradient_norm = compute_gradient_norm(params, train_images, train_labels)
     distance_from_init = compute_distance(params, starting_params)
-    logger.log({"train_acc": train_acc})
-    logger.log({"test_acc": test_acc})
-    logger.log({"grad_norm": gradient_norm})
-    logger.log({"distance_from_init": distance_from_init})
-    logger.log({"epoch": epoch})
+    logger.log({"train_acc": train_acc,
+                "test_acc": test_acc,
+                "grad_norm": gradient_norm,
+                "distance_from_init": distance_from_init,
+                "epoch": epoch})
     print("#### Epoch {}".format(epoch))
     print("Training set accuracy {}".format(train_acc))
     print("Test set accuracy {}".format(test_acc))

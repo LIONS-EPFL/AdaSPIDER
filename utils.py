@@ -10,10 +10,11 @@ from model import loss
 def create_params(layer_widths):
     params = []
     for n_in, n_out in zip(layer_widths[:-1], layer_widths[1:]):
+        bound = 0.1/np.sqrt(n_in)
         params.append(
             dict(
-                weights=0.01 * (np.random.normal(size=(n_in, n_out))),
-                biases=0.01 * (np.random.normal(size=(n_out,))),
+                weights= (np.random.uniform(-3.0*bound, 3.0*bound, size=(n_in, n_out))),
+                biases= (np.random.uniform(-bound, bound, size=(n_out,))),
             )
         )
     return params

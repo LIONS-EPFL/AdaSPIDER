@@ -184,3 +184,80 @@ class AdaSpider(Optimizer):
         state["acc_v"] = accumulated_norms
         state["prev_params"] = tree_map(lambda z: z.copy(), params)
         return state
+
+
+
+@attrs.define
+class AdaSpiderBoost(Optimizer):
+    eta: float = 1.0
+    n: int = 0
+
+    def create_state(self, params):
+        v = tree_map(lambda p: jnp.zeros_like(p), params)
+        prev_params = tree_map(lambda p: jnp.zeros_like(p), params)
+        return {
+            "V": v,
+            "prev_params": prev_params,
+            "acc_v": 0.0,
+            "n": self.n,
+            "eta": self.eta,
+            "step_size": 0.0
+        }
+
+    @jit
+    def on_step_state_update(params, state, batch):
+        x, y = batch
+        V = state["V"]
+        prev_params = state["prev_params"]
+        accumulated_norms = state["acc_v"]
+
+        grads_prev = grad(loss)(prev_params, x, y)
+        grads = grad(loss)(params, x, y)
+
+        V = tree_map(
+            lambda curr_grad, prev_grad, v: curr_grad - prev_grad + v,
+            grads,
+            grads_prev,
+            V,
+        )
+
+        norms = tree_map(lambda v: jnp.sum(v * v), V)
+        total_norm = tree_reduce(lambda a, b: a + b, norms, 0.0)
+
+        accumulated_norms += total_norm
+
+        state["V"] = V
+        state["acc_v"] = accumulated_norms
+
+        return state
+
+    @jit
+    def update(params, state, batch):
+        V = state["V"]
+        accumulated_norms = state["acc_v"]
+        n = state["n"]
+        eta = state["eta"]
+
+        state["prev_params"] = tree_map(lambda x: x.copy(), params)
+
+        step_size = 1 / (jnp.sqrt(1 + accumulated_norms))
+        state["step_size"] = step_size
+        return tree_map(lambda p, g: p - eta * step_size * g, params, V), state
+
+    @jit
+    def on_epoch_state_update(params, state, batch):
+        x, y = batch
+        grads = grad(loss)(params, x, y)
+        accumulated_norms = state["acc_v"]
+
+        state["V"] = grads
+        
+        norms = tree_map(lambda v: jnp.sum(v * v), state["V"])
+        total_norm = tree_reduce(lambda a, b: a + b, norms, 0.0)
+
+        accumulated_norms += total_norm
+        state["acc_v"] = accumulated_norms
+        state["prev_params"] = tree_map(lambda z: z.copy(), params)
+        return state
+
+
