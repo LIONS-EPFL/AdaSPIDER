@@ -8,7 +8,7 @@ config.update("jax_enable_x64", True)
 from utils import compute_distance, compute_gradient_norm, create_params, one_hot
 from model import accuracy, loss
 from dataloader import MNIST, FashionMNIST, NumpyLoader, FlattenAndCast
-from optimizers import SGD, AdaGrad, AdaSpiderBoost, SpiderBoost, AdaSpider, Spider
+from optimizers import SGD, AdaGrad, AdaSpiderBoost, AdaSpider, KatyushaXw, Spider
 import wandb
 import argparse
 
@@ -36,14 +36,16 @@ optimizers = {
     "AdaSpider": AdaSpider,
     "AdaGrad": AdaGrad,
     "AdaSpiderBoost": AdaSpiderBoost,
-    "Spider": Spider
+    "Spider": Spider,
+    "KatyushaXw": KatyushaXw
 }
 optimizer_params = {
-    "SGD": {"step_size": step_size},
+    "SGD": {"step_size": args.step_size},
     "AdaSpider": {"n": args.n, "eta": eta},
     "AdaGrad": {"eta": eta, "epsilon": epsilon},
     "AdaSpiderBoost": {"eta": eta, "n": args.n},
-    "Spider": {"n_zero": args.n, "L": args.L, "epsilon": args.epsilon}
+    "Spider": {"n_zero": args.n, "L": args.L, "epsilon": args.epsilon},
+    "KatyushaXw": {"step_size": args.step_size}
 }
 algorithm = optimizers[args.optimizer]
 optimizer = algorithm(**optimizer_params[args.optimizer])
@@ -80,7 +82,7 @@ state = optimizer.create_state(params)
 loss_lst = []
 
 for epoch in range(T):
-    state = algorithm.on_epoch_state_update(params, state, (train_images, train_labels))
+    params, state = algorithm.on_epoch_state_update(params, state, (train_images, train_labels))
     for (idx, (x, y)) in enumerate(training_generator):
         y = one_hot(y, num_classes)
         state = algorithm.on_step_state_update(params, state, (x, y))

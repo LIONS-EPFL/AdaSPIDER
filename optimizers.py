@@ -1,4 +1,5 @@
 from itertools import accumulate
+from xml.etree.ElementTree import XMLParser
 from jax import jit, grad, tree_map
 from jax.tree_util import tree_reduce
 from model import loss
@@ -12,7 +13,7 @@ class Optimizer:
         pass
 
     def on_epoch_state_update(params, state, batch):
-        return state
+        return params, state
 
     def on_step_state_update(params, state, batch):
         return state
@@ -82,7 +83,7 @@ class SpiderBoost(Optimizer):
         x, y = batch
         grads = grad(loss)(params, x, y)
         state["V"] = grads
-        return state
+        return params, state
 
     @jit
     def on_step_state_update(params, state, batch):
@@ -183,7 +184,7 @@ class AdaSpider(Optimizer):
         accumulated_norms += total_norm
         state["acc_v"] = accumulated_norms
         state["prev_params"] = tree_map(lambda z: z.copy(), params)
-        return state
+        return params, state
 
 
 
@@ -258,7 +259,7 @@ class AdaSpiderBoost(Optimizer):
         accumulated_norms += total_norm
         state["acc_v"] = accumulated_norms
         state["prev_params"] = tree_map(lambda z: z.copy(), params)
-        return state
+        return params, state
 
 
 @attrs.define
@@ -321,5 +322,57 @@ class Spider(Optimizer):
         state["V"] = grads
   
         state["prev_params"] = tree_map(lambda z: z.copy(), params)
+        return params, state
+
+
+@attrs.define
+class KatyushaXw(Optimizer):
+    step_size: float = 0.01
+
+
+    def create_state(self, params):
+        nabla = tree_map(lambda p: jnp.zeros_like(p), params)
+        x = tree_map(lambda p: p.copy(), params)
+        y = tree_map(lambda p: p.copy(), params)
+        return {
+            "nabla": nabla,
+            "x": x,
+            "prev_y": y,
+            "k": 0,
+            "step_size": self.step_size
+        }
+    
+    def on_epoch_state_update(params, state, batch):
+        xs = state["x"]
+        k = state["k"]
+        prev_ys = state["prev_y"]
+
+        xs = tree_map(lambda x, y, prev_y: ((3*k + 1)*y + (k+1)*x - (2*k - 2)*prev_y)/(2*k + 4), xs, params, prev_ys)
+
+        state["nabla"] = grad(loss)(xs, batch[0], batch[1])
+
+        state["x"] = xs 
+        state["prev_y"] = tree_map(lambda p: p.copy(), params)
+        state["k"] = state["k"] + 1
+
+        return xs, state
+    
+    def on_step_state_update(params, state, batch):
+        patterns, labels = batch
+
+        grads_prev = grad(loss)(state["x"], patterns, labels)
+        grads = grad(loss)(params, patterns, labels)
+
+        state["nabla"] = tree_map(
+            lambda curr_grad, prev_grad, v: curr_grad - prev_grad + v,
+            grads,
+            grads_prev,
+            state["nabla"],
+        )
         return state
+
+
+    def update(params, state, batch):
+        step_size = state["step_size"]
+        return tree_map(lambda p, g: p - step_size * g, params, state["nabla"]), state
 
