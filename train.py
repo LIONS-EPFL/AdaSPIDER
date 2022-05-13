@@ -8,7 +8,7 @@ config.update("jax_enable_x64", True)
 from utils import compute_distance, compute_gradient_norm, create_params, one_hot
 from model import accuracy, loss
 from dataloader import MNIST, FashionMNIST, NumpyLoader, FlattenAndCast
-from optimizers import SGD, AdaGrad, AdaSpiderBoost, SpiderBoost, AdaSpider
+from optimizers import SGD, AdaGrad, AdaSpiderBoost, SpiderBoost, AdaSpider, Spider
 import wandb
 import argparse
 
@@ -21,6 +21,7 @@ parser.add_argument("--epochs", default=10, type=int)
 parser.add_argument("--optimizer", default="SGD", type=str)
 parser.add_argument("--dataset", default="MNIST", type=str)
 parser.add_argument("--n", default=60000, type=int)
+parser.add_argument("--L", default=10, type=float)
 
 args = parser.parse_args()
 
@@ -30,12 +31,19 @@ step_size = args.step_size
 eta = args.eta
 epsilon = args.epsilon
 T = args.epochs
-optimizers = {"SGD": SGD, "AdaSpider": AdaSpider, "AdaGrad": AdaGrad, "AdaSpiderBoost": AdaSpiderBoost}
+optimizers = {
+    "SGD": SGD,
+    "AdaSpider": AdaSpider,
+    "AdaGrad": AdaGrad,
+    "AdaSpiderBoost": AdaSpiderBoost,
+    "Spider": Spider
+}
 optimizer_params = {
     "SGD": {"step_size": step_size},
     "AdaSpider": {"n": args.n, "eta": eta},
     "AdaGrad": {"eta": eta, "epsilon": epsilon},
     "AdaSpiderBoost": {"eta": eta, "n": args.n},
+    "Spider": {"n_zero": args.n, "L": args.L, "epsilon": args.epsilon}
 }
 algorithm = optimizers[args.optimizer]
 optimizer = algorithm(**optimizer_params[args.optimizer])
@@ -50,7 +58,7 @@ logger = wandb.init(
     project="AdaSpider",
     name=optimizer.__str__(),
     config={"batch_size": batch_size, "epochs": T, "layer_sizes": layer_sizes},
-    tags=[args.dataset]
+    tags=[args.dataset],
 )
 wandb.config.update(args)
 
@@ -75,23 +83,28 @@ for epoch in range(T):
     state = algorithm.on_epoch_state_update(params, state, (train_images, train_labels))
     for (idx, (x, y)) in enumerate(training_generator):
         y = one_hot(y, num_classes)
-        state = algorithm.on_step_state_update(params, state, (x,y))
+        state = algorithm.on_step_state_update(params, state, (x, y))
         params, state = algorithm.update(params, state, (x, y))
         batch_loss = loss(params, x, y)
-        if args.optimizer == 'AdaSpider':
+        if "step_size" in state:
             logger.log({"step_size": state["step_size"]}, commit=False)
+        if "acc_v" in state:
             logger.log({"accumulated_norm": state["acc_v"]}, commit=False)
         logger.log({"loss": batch_loss})
-        
+
     train_acc = accuracy(params, train_images, train_labels)
     test_acc = accuracy(params, test_images, test_labels)
     gradient_norm = compute_gradient_norm(params, train_images, train_labels)
     distance_from_init = compute_distance(params, starting_params)
-    logger.log({"train_acc": train_acc,
-                "test_acc": test_acc,
-                "grad_norm": gradient_norm,
-                "distance_from_init": distance_from_init,
-                "epoch": epoch})
+    logger.log(
+        {
+            "train_acc": train_acc,
+            "test_acc": test_acc,
+            "grad_norm": gradient_norm,
+            "distance_from_init": distance_from_init,
+            "epoch": epoch,
+        }
+    )
     print("#### Epoch {}".format(epoch))
     print("Training set accuracy {}".format(train_acc))
     print("Test set accuracy {}".format(test_acc))

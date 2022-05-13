@@ -261,3 +261,65 @@ class AdaSpiderBoost(Optimizer):
         return state
 
 
+@attrs.define
+class Spider(Optimizer):
+    epsilon: float = 0.01
+    L: float = 1
+    n_zero: int = 0
+
+    def create_state(self, params):
+        v = tree_map(lambda p: jnp.zeros_like(p), params)
+        prev_params = tree_map(lambda p: jnp.zeros_like(p), params)
+        return {
+            "V": v,
+            "prev_params": prev_params,
+            "n_zero": self.n_zero,
+            "epsilon": self.epsilon,
+            "L": self.L,
+            "step_size": 0.0
+        }
+    
+    @jit
+    def on_step_state_update(params, state, batch):
+        x, y = batch
+        V = state["V"]
+        prev_params = state["prev_params"]
+
+        grads_prev = grad(loss)(prev_params, x, y)
+        grads = grad(loss)(params, x, y)
+
+        V = tree_map(
+            lambda curr_grad, prev_grad, v: curr_grad - prev_grad + v,
+            grads,
+            grads_prev,
+            V,
+        )
+        state["V"] = V
+        return state
+
+    @jit
+    def update(params, state, batch):
+        V = state["V"]
+        L = state["L"]
+        n_zero = state["n_zero"]
+        epsilon = state["epsilon"]
+
+        state["prev_params"] = tree_map(lambda x: x.copy(), params)
+
+        norms = tree_map(lambda v: jnp.sum(v * v), V)
+        norm_V = jnp.sqrt(tree_reduce(lambda a, b: a + b, norms, 0.0))
+
+        step_size = epsilon / (L * n_zero * norm_V)
+        state["step_size"] = step_size
+        return tree_map(lambda p, g: p - step_size * g, params, V), state
+
+    @jit
+    def on_epoch_state_update(params, state, batch):
+        x, y = batch
+        grads = grad(loss)(params, x, y)
+
+        state["V"] = grads
+  
+        state["prev_params"] = tree_map(lambda z: z.copy(), params)
+        return state
+
