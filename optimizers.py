@@ -450,3 +450,64 @@ class AdaSpiderDiag(Optimizer):
         state["norms"] = norms
         state["prev_params"] = tree_map(lambda z: z.copy(), params)
         return params, state
+
+
+@attrs.define
+class AdaSVRG(Optimizer):
+    eta: float = 1.0
+
+
+    def create_state(self, params):
+        mu = tree_map(lambda p: jnp.zeros_like(p), params)
+        grad_est = tree_map(lambda p: jnp.zeros_like(p), params)
+        x = tree_map(lambda p: p.copy(), params)
+        y = tree_map(lambda p: p.copy(), params)
+        return {
+            "mu": mu,
+            "anchor": x,
+            "acc_norm": 0.0,
+            "step_size": 0.0,
+            "eta": self.eta,
+            "grad_est": grad_est
+        }
+    
+    @jit
+    def on_epoch_state_update(params, state, batch):
+        state["anchor"] =  tree_map(lambda p: p.copy(), params)
+        state["mu"] = grad(loss)(state["anchor"], batch[0], batch[1])
+
+        norm = tree_map(lambda v: jnp.sum(v * v), state["mu"])
+        state["acc_norm"] = tree_reduce(lambda a, b: a+b, norm, 0.0)
+        
+        return params, state
+    
+    @jit
+    def on_step_state_update(params, state, batch):
+        patterns, labels = batch
+
+        grads_prev = grad(loss)(state["anchor"], patterns, labels)
+        grads = grad(loss)(params, patterns, labels)
+
+        state["grad_est"] = tree_map(
+            lambda curr_grad, prev_grad, mu: curr_grad - prev_grad + mu,
+            grads,
+            grads_prev,
+            state["mu"],
+        )
+        norm = tree_map(lambda mu: jnp.sum(mu * mu), state["grad_est"])
+        state["acc_norm"] = tree_reduce(lambda a, b: a+b, norm, state["acc_norm"])
+        return state
+
+    @jit
+    def update(params, state, batch):
+        gamma = 1/jnp.sqrt(state["acc_norm"])
+        eta = state["eta"]
+        state["step_size"] = gamma
+        return tree_map(lambda p, g: p - eta * gamma * g, params, state["grad_est"]), state
+
+
+
+
+
+
+

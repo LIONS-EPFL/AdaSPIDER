@@ -8,7 +8,7 @@ config.update("jax_enable_x64", True)
 from utils import compute_distance, compute_gradient_norm, create_params, one_hot
 from model import accuracy, loss
 from dataloader import MNIST, FashionMNIST, NumpyLoader, FlattenAndCast
-from optimizers import SGD, AdaGrad, AdaSpiderBoost, AdaSpider, KatyushaXw, Spider, AdaSpiderDiag
+from optimizers import SGD, AdaGrad, AdaSVRG, AdaSpiderBoost, AdaSpider, KatyushaXw, Spider, AdaSpiderDiag
 import wandb
 import argparse
 
@@ -38,7 +38,8 @@ optimizers = {
     "AdaSpiderBoost": AdaSpiderBoost,
     "Spider": Spider,
     "KatyushaXw": KatyushaXw,
-    "AdaSpiderDiag": AdaSpiderDiag
+    "AdaSpiderDiag": AdaSpiderDiag,
+    "AdaSVRG": AdaSVRG
 }
 optimizer_params = {
     "SGD": {"step_size": args.step_size},
@@ -47,7 +48,8 @@ optimizer_params = {
     "AdaSpiderBoost": {"eta": eta, "n": args.n},
     "Spider": {"n_zero": args.n, "L": args.L, "epsilon": args.epsilon},
     "KatyushaXw": {"step_size": args.step_size},
-    "AdaSpiderDiag": {"n": args.n, "eta": eta}
+    "AdaSpiderDiag": {"n": args.n, "eta": eta},
+    "AdaSVRG": {"eta": args.eta}
 }
 algorithm = optimizers[args.optimizer]
 optimizer = algorithm(**optimizer_params[args.optimizer])
