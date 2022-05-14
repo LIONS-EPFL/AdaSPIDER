@@ -342,6 +342,7 @@ class KatyushaXw(Optimizer):
             "step_size": self.step_size
         }
     
+    @jit
     def on_epoch_state_update(params, state, batch):
         xs = state["x"]
         k = state["k"]
@@ -349,7 +350,7 @@ class KatyushaXw(Optimizer):
 
         xs = tree_map(lambda x, y, prev_y: ((3*k + 1)*y + (k+1)*x - (2*k - 2)*prev_y)/(2*k + 4), xs, params, prev_ys)
 
-        state["nabla"] = grad(loss)(xs, batch[0], batch[1])
+        state["mu"] = grad(loss)(xs, batch[0], batch[1])
 
         state["x"] = xs 
         state["prev_y"] = tree_map(lambda p: p.copy(), params)
@@ -357,6 +358,7 @@ class KatyushaXw(Optimizer):
 
         return xs, state
     
+    @jit
     def on_step_state_update(params, state, batch):
         patterns, labels = batch
 
@@ -367,11 +369,11 @@ class KatyushaXw(Optimizer):
             lambda curr_grad, prev_grad, v: curr_grad - prev_grad + v,
             grads,
             grads_prev,
-            state["nabla"],
+            state["mu"],
         )
         return state
 
-
+    @jit
     def update(params, state, batch):
         step_size = state["step_size"]
         return tree_map(lambda p, g: p - step_size * g, params, state["nabla"]), state
