@@ -378,3 +378,75 @@ class KatyushaXw(Optimizer):
         step_size = state["step_size"]
         return tree_map(lambda p, g: p - step_size * g, params, state["nabla"]), state
 
+
+
+@attrs.define
+class AdaSpiderDiag(Optimizer):
+    eta: float = 1.0
+    n: int = 0
+
+    def create_state(self, params):
+        v = tree_map(lambda p: jnp.zeros_like(p), params)
+        prev_params = tree_map(lambda p: jnp.zeros_like(p), params)
+        norms = tree_map(lambda p: jnp.zeros_like(p), params)
+        return {
+            "V": v,
+            "prev_params": prev_params,
+            "norms": norms,
+            "n": self.n,
+            "eta": self.eta,
+            "step_size": 0.0
+        }
+
+    @jit
+    def on_step_state_update(params, state, batch):
+        x, y = batch
+        V = state["V"]
+        prev_params = state["prev_params"]
+        norms = state["norms"]
+
+        grads_prev = grad(loss)(prev_params, x, y)
+        grads = grad(loss)(params, x, y)
+
+        V = tree_map(
+            lambda curr_grad, prev_grad, v: curr_grad - prev_grad + v,
+            grads,
+            grads_prev,
+            V,
+        )
+
+        current_norms = tree_map(lambda v: (v * v), V)
+        norms = tree_map(lambda a, b: a + b, current_norms, norms)
+
+        state["V"] = V
+        state["norms"] = norms
+
+        return state
+
+    @jit
+    def update(params, state, batch):
+        V = state["V"]
+        norms = state["norms"]
+        n = state["n"]
+        eta = state["eta"]
+
+        state["prev_params"] = tree_map(lambda x: x.copy(), params)
+
+        step_size = lambda nrm: 1 / (n ** (1 / 4) * jnp.sqrt(jnp.sqrt(n) + nrm))
+        
+        return tree_map(lambda p, g, nrm: p - eta * step_size(nrm) * g, params, V, norms), state
+
+    @jit
+    def on_epoch_state_update(params, state, batch):
+        x, y = batch
+        grads = grad(loss)(params, x, y)
+        norms = state["norms"]
+
+        state["V"] = grads
+        
+        current_norms = tree_map(lambda v: (v * v), state["V"])
+        norms = tree_map(lambda a, b: a + b, norms, current_norms)
+
+        state["norms"] = norms
+        state["prev_params"] = tree_map(lambda z: z.copy(), params)
+        return params, state
