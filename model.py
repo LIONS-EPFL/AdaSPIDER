@@ -9,13 +9,14 @@ from jax.scipy.special import logsumexp
 def net(params, x):
     *hidden, last = params
     for layer in hidden:
-        x = elu(x @ layer["weights"] + layer["biases"])
+        x = (x @ layer["weights"] + layer["biases"])
     return x @ last["weights"] + last["biases"]
 
 
 @jit
 def loss(params, x, y):
     out = net(params, x)
+    return jnp.mean((y- (out))**2)
     logits = out - logsumexp(out, axis=1).reshape(-1, 1)
     return -jnp.mean(y * logits)
 

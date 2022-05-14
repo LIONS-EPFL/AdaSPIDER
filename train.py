@@ -53,7 +53,7 @@ selected_dataset = {"MNIST": MNIST, "FashionMNIST": FashionMNIST}
 data = selected_dataset[args.dataset]
 ######
 
-layer_sizes = [28 * 28, 512, 512, 10]
+layer_sizes = [28 * 28, 10]
 num_classes = 10
 
 logger = wandb.init(
