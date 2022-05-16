@@ -96,9 +96,22 @@ test_labels = one_hot(np.array(dataset_test.targets), num_classes)
 params = create_params(layer_sizes)
 starting_params = tree_map(lambda x: x.copy(), params)
 state = optimizer.create_state(params)
-loss_lst = []
 
-for epoch in range(T):
+train_acc = accuracy(params, train_images, train_labels)
+test_acc = accuracy(params, test_images, test_labels)
+gradient_norm = compute_gradient_norm(params, train_images, train_labels)
+distance_from_init = compute_distance(params, starting_params)
+logger.log(
+    {
+        "train_acc": train_acc,
+        "test_acc": test_acc,
+        "grad_norm": gradient_norm,
+        "distance_from_init": distance_from_init,
+        "epoch": 0,
+    }
+)
+
+for epoch in range(1, T+1):
     params, state = algorithm.on_epoch_state_update(params, state, (train_images, train_labels))
     for (idx, (x, y)) in enumerate(training_generator):
         y = one_hot(y, num_classes)
