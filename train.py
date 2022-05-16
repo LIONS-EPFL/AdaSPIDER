@@ -8,9 +8,10 @@ config.update("jax_enable_x64", True)
 from utils import compute_distance, compute_gradient_norm, create_params, one_hot
 from model import accuracy, loss
 from dataloader import MNIST, FashionMNIST, NumpyLoader, FlattenAndCast
-from optimizers import SGD, AdaGrad, AdaSVRG, AdaSpiderBoost, AdaSpider, KatyushaXw, Spider, AdaSpiderDiag
+from optimizers import SGD, AdaGrad, AdaSVRG, AdaSpiderBoost, AdaSpider, Adam, KatyushaXw, Spider, AdaSpiderDiag
 import wandb
 import argparse
+import torch
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--batch_size", default=128, type=int)
@@ -22,6 +23,9 @@ parser.add_argument("--optimizer", default="SGD", type=str)
 parser.add_argument("--dataset", default="MNIST", type=str)
 parser.add_argument("--n", default=60000, type=int)
 parser.add_argument("--L", default=10, type=float)
+parser.add_argument("--run_id", default=0, type=int)
+parser.add_argument("--beta_1", default=0.9, type=float)
+parser.add_argument("--beta_2", default=0.999, type=float)
 
 args = parser.parse_args()
 
@@ -39,7 +43,8 @@ optimizers = {
     "Spider": Spider,
     "KatyushaXw": KatyushaXw,
     "AdaSpiderDiag": AdaSpiderDiag,
-    "AdaSVRG": AdaSVRG
+    "AdaSVRG": AdaSVRG,
+    "Adam": Adam
 }
 optimizer_params = {
     "SGD": {"step_size": args.step_size},
@@ -49,7 +54,8 @@ optimizer_params = {
     "Spider": {"n_zero": args.n, "L": args.L, "epsilon": args.epsilon},
     "KatyushaXw": {"step_size": args.step_size},
     "AdaSpiderDiag": {"n": args.n, "eta": eta},
-    "AdaSVRG": {"eta": args.eta}
+    "AdaSVRG": {"eta": args.eta},
+    "Adam": {"eta": args.eta, "epsilon": args.epsilon, "beta_1": args.beta_1, "beta_2": args.beta_2}
 }
 algorithm = optimizers[args.optimizer]
 optimizer = algorithm(**optimizer_params[args.optimizer])
@@ -57,12 +63,19 @@ selected_dataset = {"MNIST": MNIST, "FashionMNIST": FashionMNIST}
 data = selected_dataset[args.dataset]
 ######
 
+######### RANDOM SEEDS ################
+seeds = [1701, 42, 3427642, 93422287, 74]
+seed = seeds[args.run_id]
+torch.manual_seed(seed)
+np.random.seed(seed)
+#######################################
+
 layer_sizes = [28 * 28, 512, 512, 10]
 num_classes = 10
 
 logger = wandb.init(
     project="AdaSpider",
-    name=optimizer.__str__(),
+    name=optimizer.__str__() + "-" + args.dataset + "-run-" + str(args.run_id),
     config={"batch_size": batch_size, "epochs": T, "layer_sizes": layer_sizes},
     tags=[args.dataset],
 )

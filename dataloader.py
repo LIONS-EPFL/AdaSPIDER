@@ -19,7 +19,7 @@ class NumpyLoader(data.DataLoader):
         self,
         dataset,
         batch_size=1,
-        shuffle=False,
+        shuffle=True,
         sampler=None,
         batch_sampler=None,
         num_workers=0,

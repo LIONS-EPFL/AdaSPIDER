@@ -509,5 +509,51 @@ class AdaSVRG(Optimizer):
 
 
 
+@attrs.define
+class Adam(Optimizer):
+
+    eta: float = 0.001
+    beta_1: float = 0.9
+    beta_2: float = 0.999
+    epsilon: float = 1e-8
+
+    def create_state(self, params):
+        V = tree_map(lambda p: jnp.zeros_like(p), params)
+        M = tree_map(lambda p: jnp.zeros_like(p), params)
+        return {"eta": self.eta,
+                "beta_1": self.beta_1,
+                "beta_2": self.beta_2,
+                "beta_1_pow_t": self.beta_1,
+                "beta_2_pow_t": self.beta_2,
+                "M": M,
+                "V": V,
+                "epsilon": self.epsilon}
+
+    @jit
+    def on_step_state_update(params, state, batch):
+        x, y = batch
+        beta_1, beta_2 = state["beta_1"], state["beta_2"]
+        beta_1_pow_t, beta_2_pow_t = state["beta_1_pow_t"], state["beta_2_pow_t"]
+
+        grads = grad(loss)(params, x, y)
+        state["M"] = tree_map(lambda prev, g: beta_1 * prev + (1-beta_1)* g, state["M"], grads)
+        state["V"] = tree_map(lambda prev, g: beta_2 * prev + (1-beta_2) * g**2, state["V"], grads)
+
+        state["M"] = tree_map(lambda m: m/(1 - beta_1_pow_t), state["M"])
+        state["V"] = tree_map(lambda v: v/(1 - beta_2_pow_t), state["V"])
+
+        state["beta_1_pow_t"] = beta_1*beta_1_pow_t
+        state["beta_2_pow_t"] = beta_2*beta_2_pow_t
+        return state
+
+    @jit
+    def update(params, state, batch):
+        eta = state["eta"]
+        M = state["M"]
+        V = state["V"]
+        epsilon = state["epsilon"]
+
+        return tree_map(lambda p, m, v: p - eta * m/(jnp.sqrt(v) + epsilon), params, M, V), state
+
 
 
