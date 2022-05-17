@@ -71,18 +71,19 @@ class AdaGrad(Optimizer):
 
 @attrs.define
 class SpiderBoost(Optimizer):
-    step_size: float = 0.01
+    L: float = 1.0
 
     def create_state(self, params):
         v = tree_map(lambda p: jnp.zeros_like(p), params)
         prev_params = tree_map(lambda p: jnp.zeros_like(p), params)
-        return {"step_size": self.step_size, "V": v, "prev_params": prev_params}
+        return {"step_size": 1.0/(2*self.L), "V": v, "prev_params": prev_params}
     
     @jit
     def on_epoch_state_update(params, state, batch):
         x, y = batch
         grads = grad(loss)(params, x, y)
         state["V"] = grads
+        state["prev_params"] = params
         return params, state
 
     @jit
@@ -236,7 +237,6 @@ class AdaSpiderBoost(Optimizer):
     def update(params, state, batch):
         V = state["V"]
         accumulated_norms = state["acc_v"]
-        n = state["n"]
         eta = state["eta"]
 
         state["prev_params"] = tree_map(lambda x: x.copy(), params)
