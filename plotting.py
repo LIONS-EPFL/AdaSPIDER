@@ -18,23 +18,13 @@
 import wandb
 api = wandb.Api()
 
-# Project is specified by <entity/project-name>
+
 runs = api.runs("epfl-lions/Neurips-AdaSpider")
 summary_list = [] 
 config_list = [] 
 name_list = [] 
 for run in runs: 
-    
-    # run.summary are the output key/values like accuracy.
-    # We call ._json_dict to omit large files  
-    
-    # run.config is the input metrics.
-    # We remove special values that start with _.
     config = {k:v for k,v in run.config.items()}
-    
-
-    # run.name is the name of the run.
-      
     for row in run.scan_history():
         if 'loss' in row:
             continue
@@ -51,8 +41,8 @@ all_df = pd.concat([name_df, config_df,summary_df], axis=1)
 all_df.to_csv("project.csv")
 
 # %%
-means = all_df[all_df["dataset"]=="FashionMNIST"].groupby(["optimizer", "epoch"])["grad_norm"].mean()
-stds = all_df[all_df["dataset"]=="FashionMNIST"].groupby(["optimizer", "epoch"])["grad_norm"].std()
+means = all_df[all_df["dataset"]=="MNIST"].groupby(["optimizer", "epoch"])["grad_norm"].mean()
+stds = all_df[all_df["dataset"]=="MNIST"].groupby(["optimizer", "epoch"])["grad_norm"].std()
 
 # %%
 import matplotlib.pyplot as plt
@@ -67,15 +57,19 @@ markers = ['.', 'v', '2', '8', 'P', '*', 'X', 's']
 optimizers = ["AdaGrad", "SGD", "KatyushaXw", "AdaSVRG", "Spider", "AdaSpider", "SpiderBoost"]
 
 for i, opt in enumerate(optimizers):
-    plt.plot(means[opt].index, means[opt], label=opt, ls=styles[i%len(styles)], marker=markers[i])
-    plt.fill_between(means[opt].index,means[opt] - stds[opt]/np.sqrt(5) , means[opt] + stds[opt]/np.sqrt(5), alpha=0.1)
+    plt.plot(468*means[opt].index, means[opt], label=opt, ls=styles[i%len(styles)], marker=markers[i])
+    plt.fill_between(468*means[opt].index,means[opt] - stds[opt]/np.sqrt(5) , means[opt] + stds[opt]/np.sqrt(5), alpha=0.1)
 
 
 plt.yscale('log')
-plt.ylabel(r'$\| \nabla f (x_k)\|$')
-plt.xlabel("epoch")
-#plt.title("Gradient norms")
+plt.ylabel(r'$\| \nabla f (x_k)\|^2$')
+plt.xlabel("# stochastic oracle calls")
 plt.legend()
-plt.savefig("FashionMNISTGradNorm.pdf", format='pdf')
+plt.savefig("MNIST-grad-norm.pdf", format='pdf')
 plt.show()
     
+
+# %%
+# %pwd
+
+# %%
