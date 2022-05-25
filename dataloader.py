@@ -45,4 +45,4 @@ class NumpyLoader(data.DataLoader):
 
 class FlattenAndCast(object):
     def __call__(self, pic):
-        return jnp.ravel(jnp.array(pic, dtype=jnp.float32))
+        return (jnp.array(pic, dtype=jnp.float64)).reshape(28, 28, 1)

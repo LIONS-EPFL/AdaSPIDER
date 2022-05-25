@@ -1,12 +1,13 @@
 from jax import grad, tree_map
 import numpy as np
+import jax
 import jax.numpy as jnp
 from jax.config import config
 
 config.update("jax_enable_x64", True)
 
 from utils import compute_distance, compute_gradient_norm, create_params, one_hot
-from model import accuracy, loss
+from model import accuracy, loss, net
 from dataloader import MNIST, FashionMNIST, NumpyLoader, FlattenAndCast
 from optimizers import SGD, AdaGrad, AdaSVRG, AdaSpiderBoost, AdaSpider, Adam, KatyushaXw, Spider, AdaSpiderDiag, SpiderBoost
 import wandb
@@ -85,23 +86,24 @@ wandb.config.update(args)
 
 dataset = data("/tmp/mnist/", download=True, transform=FlattenAndCast())
 training_generator = NumpyLoader(dataset, batch_size=batch_size, num_workers=0)
-train_images = np.array(dataset.data).reshape(len(dataset.data), -1)
+train_images = jnp.array(dataset.data.numpy(), dtype=jnp.float64).reshape(len(dataset.data), 28, 28, 1)
 train_labels = one_hot(np.array(dataset.targets), num_classes)
 dataset_test = data("/tmp/mnist/", download=True, train=False)
 test_images = jnp.array(
-    dataset_test.data.numpy().reshape(len(dataset_test.data), -1),
-    dtype=jnp.float32,
+    dataset_test.data.numpy().reshape(len(dataset_test.data), 28, 28, 1),
+    dtype=jnp.float64,
 )
 test_labels = one_hot(np.array(dataset_test.targets), num_classes)
 
 
-params = create_params(layer_sizes)
+rng = jax.random.PRNGKey(42)
+params, net_state = net.init(rng, np.random.randn(128, 28, 28, 1), is_training=True)
 starting_params = tree_map(lambda x: x.copy(), params)
 state = optimizer.create_state(params)
 
-train_acc = accuracy(params, train_images, train_labels)
-test_acc = accuracy(params, test_images, test_labels)
-gradient_norm = compute_gradient_norm(params, train_images, train_labels)
+train_acc = accuracy(params, net_state, train_images, train_labels)
+test_acc = accuracy(params, net_state, test_images, test_labels)
+gradient_norm = compute_gradient_norm(params, net_state, train_images, train_labels)
 distance_from_init = compute_distance(params, starting_params)
 logger.log(
     {
@@ -114,21 +116,21 @@ logger.log(
 )
 
 for epoch in range(1, T+1):
-    params, state = algorithm.on_epoch_state_update(params, state, (train_images, train_labels))
+    params, net_state, state = algorithm.on_epoch_state_update(params, net_state, state, (train_images, train_labels))
     for (idx, (x, y)) in enumerate(training_generator):
         y = one_hot(y, num_classes)
-        state = algorithm.on_step_state_update(params, state, (x, y))
-        params, state = algorithm.update(params, state, (x, y))
-        batch_loss = loss(params, x, y)
+        net_state, state = algorithm.on_step_state_update(params, net_state, state, (x, y))
+        params, net_state, state = algorithm.update(params, net_state, state, (x, y))
+        batch_loss = loss(params, net_state, x, y)
         if "step_size" in state:
             logger.log({"step_size": state["step_size"]}, commit=False)
         if "acc_v" in state:
             logger.log({"accumulated_norm": state["acc_v"]}, commit=False)
         logger.log({"loss": batch_loss})
 
-    train_acc = accuracy(params, train_images, train_labels)
-    test_acc = accuracy(params, test_images, test_labels)
-    gradient_norm = compute_gradient_norm(params, train_images, train_labels)
+    train_acc = accuracy(params, net_state, train_images, train_labels)
+    test_acc = accuracy(params, net_state, test_images, test_labels)
+    gradient_norm = compute_gradient_norm(params, net_state, train_images, train_labels)
     distance_from_init = compute_distance(params, starting_params)
     logger.log(
         {

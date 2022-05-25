@@ -25,8 +25,8 @@ def one_hot(x, k, dtype=jnp.float32):
     return jnp.array(x[:, None] == jnp.arange(k), dtype)
 
 @jit
-def compute_gradient_norm(params, x, y):
-    grads = grad(loss)(params, x, y)
+def compute_gradient_norm(params, net_state, x, y):
+    grads, _ = grad(loss, has_aux=True)(params, net_state, x, y, False)
     norms = jax.tree_map(lambda v: jnp.sum(v * v), grads)
     return jax.tree_util.tree_reduce(lambda a, b: a + b, norms, 0.0)
 

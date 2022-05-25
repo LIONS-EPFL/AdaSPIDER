@@ -12,14 +12,14 @@ class Optimizer:
     def create_state(self, params):
         pass
 
-    def on_epoch_state_update(params, state, batch):
-        return params, state
+    def on_epoch_state_update(params, net_state, state, batch):
+        return params, net_state, state
 
-    def on_step_state_update(params, state, batch):
-        return state
+    def on_step_state_update(params, net_state, state, batch):
+        return net_state, state
 
-    def update(params, state, batch):
-        return params, state
+    def update(params, net_state, state, batch):
+        return params, net_state, state
 
 
 @attrs.define
@@ -30,12 +30,12 @@ class SGD(Optimizer):
         return {"step_size": self.step_size}
 
     @jit
-    def update(params, state, batch):
+    def update(params, net_state, state, batch):
         x, y = batch
         step_size = state["step_size"]
 
-        grads = grad(loss)(params, x, y)
-        return tree_map(lambda p, g: p - step_size * g, params, grads), state
+        grads, net_state = grad(loss, has_aux=True)(params, net_state, x, y, True)
+        return tree_map(lambda p, g: p - step_size * g, params, grads), net_state, state
 
 
 @attrs.define
