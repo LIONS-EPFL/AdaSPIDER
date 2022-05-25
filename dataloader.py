@@ -1,7 +1,7 @@
 import numpy as np
 import jax.numpy as jnp
 from torch.utils import data
-from torchvision.datasets import MNIST, FashionMNIST
+from torchvision.datasets import MNIST, FashionMNIST, CIFAR10
 
 
 def numpy_collate(batch):
@@ -43,6 +43,4 @@ class NumpyLoader(data.DataLoader):
         )
 
 
-class FlattenAndCast(object):
-    def __call__(self, pic):
-        return (jnp.array(pic, dtype=jnp.float64)).reshape(28, 28, 1)
+

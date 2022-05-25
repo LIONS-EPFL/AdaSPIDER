@@ -8,7 +8,7 @@ config.update("jax_enable_x64", True)
 
 from utils import compute_distance, compute_gradient_norm, create_params, one_hot
 from model import accuracy, loss, net
-from dataloader import MNIST, FashionMNIST, NumpyLoader, FlattenAndCast
+from dataloader import MNIST, FashionMNIST, NumpyLoader, CIFAR10
 from optimizers import SGD, AdaGrad, AdaSVRG, AdaSpiderBoost, AdaSpider, Adam, KatyushaXw, Spider, AdaSpiderDiag, SpiderBoost
 import wandb
 import argparse
@@ -62,7 +62,7 @@ optimizer_params = {
 }
 algorithm = optimizers[args.optimizer]
 optimizer = algorithm(**optimizer_params[args.optimizer])
-selected_dataset = {"MNIST": MNIST, "FashionMNIST": FashionMNIST}
+selected_dataset = {"MNIST": MNIST, "FashionMNIST": FashionMNIST, "CIFAR10": CIFAR10}
 data = selected_dataset[args.dataset]
 ######
 
@@ -71,6 +71,7 @@ seeds = [1701, 42, 3427642, 93422287, 74]
 seed = seeds[args.run_id]
 torch.manual_seed(seed)
 np.random.seed(seed)
+rng = jax.random.PRNGKey(seeds[args.run_id])
 #######################################
 
 layer_sizes = [28 * 28, 512, 512, 10]
@@ -84,20 +85,28 @@ logger = wandb.init(
 )
 wandb.config.update(args)
 
-dataset = data("/tmp/mnist/", download=True, transform=FlattenAndCast())
+if args.dataset in ['MNIST', 'FashionMNIST']:
+    shape = (28, 28, 1)
+else:
+    shape = (32, 32, 3)
+
+class ReshapeAndCast(object):
+    def __call__(self, pic):
+        return (jnp.array(pic, dtype=jnp.float64)).reshape(*shape)
+
+dataset = data("/tmp/mnist/", download=True, transform=ReshapeAndCast())
 training_generator = NumpyLoader(dataset, batch_size=batch_size, num_workers=0)
-train_images = jnp.array(dataset.data.numpy(), dtype=jnp.float64).reshape(len(dataset.data), 28, 28, 1)
+train_images = jnp.array(dataset.data.numpy(), dtype=jnp.float64).reshape(len(dataset.data), *shape)
 train_labels = one_hot(np.array(dataset.targets), num_classes)
 dataset_test = data("/tmp/mnist/", download=True, train=False)
 test_images = jnp.array(
-    dataset_test.data.numpy().reshape(len(dataset_test.data), 28, 28, 1),
+    dataset_test.data.numpy().reshape(len(dataset_test.data), *shape),
     dtype=jnp.float64,
 )
 test_labels = one_hot(np.array(dataset_test.targets), num_classes)
 
 
-rng = jax.random.PRNGKey(42)
-params, net_state = net.init(rng, np.random.randn(128, 28, 28, 1), is_training=True)
+params, net_state = net.init(rng, np.random.randn(args.batch_size, *shape), is_training=True)
 starting_params = tree_map(lambda x: x.copy(), params)
 state = optimizer.create_state(params)
 
