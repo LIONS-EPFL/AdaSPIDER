@@ -24,7 +24,7 @@ def create_params(layer_widths):
 def one_hot(x, k, dtype=jnp.float32):
     return jnp.array(x[:, None] == jnp.arange(k), dtype)
 
-@jit
+
 def compute_gradient_norm(params, net_state, x, y):
     grads, _ = grad(loss, has_aux=True)(params, net_state, x, y, False)
     norms = jax.tree_map(lambda v: jnp.sum(v * v), grads)
