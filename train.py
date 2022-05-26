@@ -96,11 +96,11 @@ class ReshapeAndCast(object):
 
 dataset = data("/tmp/mnist/", download=True, transform=ReshapeAndCast())
 training_generator = NumpyLoader(dataset, batch_size=batch_size, num_workers=0)
-train_images = jnp.array(dataset.data.numpy(), dtype=jnp.float64).reshape(len(dataset.data), *shape)
+train_images = jnp.array(dataset.data, dtype=jnp.float64).reshape(len(dataset.data), *shape)
 train_labels = one_hot(np.array(dataset.targets), num_classes)
 dataset_test = data("/tmp/mnist/", download=True, train=False)
 test_images = jnp.array(
-    dataset_test.data.numpy().reshape(len(dataset_test.data), *shape),
+    dataset_test.data.reshape(len(dataset_test.data), *shape),
     dtype=jnp.float64,
 )
 test_labels = one_hot(np.array(dataset_test.targets), num_classes)
