@@ -21,7 +21,6 @@ def loss(params, net_state, x, y, is_training=True):
     return -jnp.mean(y * logits), net_state
 
 
-@jit
 def accuracy(params, net_state, images, labels):
     s = 0
     for i in range(0, 1875):

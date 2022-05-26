@@ -24,7 +24,7 @@ def create_params(layer_widths):
 def one_hot(x, k, dtype=jnp.float32):
     return jnp.array(x[:, None] == jnp.arange(k), dtype)
 
-@jit
+
 def compute_gradient_norm(params, net_state, x, y):
     s = 0
     for i in range(0, 1875):
