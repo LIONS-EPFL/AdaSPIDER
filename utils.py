@@ -24,11 +24,15 @@ def create_params(layer_widths):
 def one_hot(x, k, dtype=jnp.float32):
     return jnp.array(x[:, None] == jnp.arange(k), dtype)
 
-
+@jit
 def compute_gradient_norm(params, net_state, x, y):
-    grads, _ = grad(loss, has_aux=True)(params, net_state, x, y, False)
-    norms = jax.tree_map(lambda v: jnp.sum(v * v), grads)
-    return jax.tree_util.tree_reduce(lambda a, b: a + b, norms, 0.0)
+    s = 0
+    for i in range(0, 1875):
+        images, labels = x[32*i: 32*(i+1)], y[32*i: 32*(i+1)]
+        grads, _ = grad(loss, has_aux=True)(params, net_state, images, labels, False)
+        norms = jax.tree_map(lambda v: jnp.sum(v * v), grads)
+        s += 32*jax.tree_util.tree_reduce(lambda a, b: a + b, norms, 0.0)
+    return s/60000
 
 def compute_distance(params, starting_params):
   distances = tree_map(lambda a, b: jnp.linalg.norm(a - b)**2, params, starting_params)

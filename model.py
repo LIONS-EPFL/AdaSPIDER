@@ -21,8 +21,12 @@ def loss(params, net_state, x, y, is_training=True):
     return -jnp.mean(y * logits), net_state
 
 
-
-def accuracy(params, net_state, x, y):
-    true_class = jnp.argmax(y, axis=1)
-    predicted_class = jnp.argmax(net.apply(params, net_state, None, x, False)[0], axis=1)
-    return jnp.mean(predicted_class == true_class)
+@jit
+def accuracy(params, net_state, images, labels):
+    s = 0
+    for i in range(0, 1875):
+        x, y = images[32*i: 32*(i+1)], labels[32*i: 32*(i+1)]
+        true_class = jnp.argmax(y, axis=1)
+        predicted_class = jnp.argmax(net.apply(params, net_state, None, x, False)[0], axis=1)
+        s += jnp.sum(predicted_class == true_class)
+    return s/60000
