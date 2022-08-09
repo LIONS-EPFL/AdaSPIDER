@@ -76,7 +76,7 @@ layer_sizes = [28 * 28, 512, 512, 10]
 num_classes = 10
 
 logger = wandb.init(
-    project="Neurips-AdaSpider",
+    project="Neurips-AdaSpider-Rebuttal",
     name=optimizer.__str__() + "-" + args.dataset + "-run-" + str(args.run_id),
     config={"batch_size": batch_size, "epochs": T, "layer_sizes": layer_sizes},
     tags=[args.dataset],
