@@ -18,7 +18,7 @@ parser.add_argument("--batch_size", default=128, type=int)
 parser.add_argument("--step_size", default=0.01, type=float)
 parser.add_argument("--eta", default=0.01, type=float)
 parser.add_argument("--epsilon", default=1e-4, type=float)
-parser.add_argument("--epochs", default=10, type=int)
+parser.add_argument("--epochs", default=100, type=int)
 parser.add_argument("--optimizer", default="SGD", type=str)
 parser.add_argument("--dataset", default="MNIST", type=str)
 parser.add_argument("--n", default=60000, type=int)
@@ -26,6 +26,7 @@ parser.add_argument("--L", default=10, type=float)
 parser.add_argument("--run_id", default=0, type=int)
 parser.add_argument("--beta_1", default=0.9, type=float)
 parser.add_argument("--beta_2", default=0.999, type=float)
+parser.add_argument("--datasize", default=60000, type=int)
 
 args = parser.parse_args()
 
@@ -63,6 +64,7 @@ algorithm = optimizers[args.optimizer]
 optimizer = algorithm(**optimizer_params[args.optimizer])
 selected_dataset = {"MNIST": MNIST, "FashionMNIST": FashionMNIST}
 data = selected_dataset[args.dataset]
+datasize = args.datasize
 ######
 
 ######### RANDOM SEEDS ################
@@ -84,6 +86,8 @@ logger = wandb.init(
 wandb.config.update(args)
 
 dataset = data("/tmp/mnist/", download=True, transform=FlattenAndCast())
+dataset.data = dataset.data[:datasize]
+dataset.targets = dataset.targets[:datasize]
 training_generator = NumpyLoader(dataset, batch_size=batch_size, num_workers=0)
 train_images = np.array(dataset.data).reshape(len(dataset.data), -1)
 train_labels = one_hot(np.array(dataset.targets), num_classes)
